@@ -1,6 +1,6 @@
-const express = require('express');
-const cloudinary = require('cloudinary').v2;
-const authMiddleware = require('../middleware/auth');
+const express = require("express");
+const cloudinary = require("cloudinary").v2;
+const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
@@ -11,25 +11,31 @@ cloudinary.config({
 });
 
 // POST /api/upload — Upload base64 image to Cloudinary (Protected)
-router.post('/', authMiddleware, async (req, res) => {
+router.post("/", authMiddleware, async (req, res) => {
   try {
-    const { image } = req.body; // expects a base64 data URL string
+    const { image } = req.body;
 
     if (!image) {
-      return res.status(400).json({ message: 'No image provided' });
+      return res.status(400).json({ message: "No image provided" });
     }
 
     const result = await cloudinary.uploader.upload(image, {
-      folder: 'travel-buddy',
+      folder: "travel-buddy",
       transformation: [
-        { width: 1200, height: 800, crop: 'limit', quality: 'auto', fetch_format: 'auto' },
+        {
+          width: 1200,
+          height: 800,
+          crop: "limit",
+          quality: "auto",
+          fetch_format: "auto",
+        },
       ],
     });
 
     res.status(200).json({ url: result.secure_url });
   } catch (error) {
-    console.error('Cloudinary Upload Error:', error);
-    res.status(500).json({ message: 'Image upload failed' });
+    console.error("Cloudinary Upload Error:", error);
+    res.status(500).json({ message: "Image upload failed" });
   }
 });
 
