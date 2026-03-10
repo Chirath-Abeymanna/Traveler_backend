@@ -4,29 +4,78 @@ const authMiddleware = require("../middleware/auth");
 
 const router = express.Router();
 
-// GET all listings (Public)
+// GET all listings with server-side pagination + search (Public)
 router.get("/", async (req, res) => {
   try {
-    const listings = await Listing.find()
-      .populate("author", "firstName lastName")
-      .sort({ createdAt: -1 });
-    res.status(200).json(listings);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 9);
+    const search = req.query.search?.trim() || '';
+
+    const filter = search
+      ? {
+          $or: [
+            { title: { $regex: search, $options: 'i' } },
+            { location: { $regex: search, $options: 'i' } },
+            { description: { $regex: search, $options: 'i' } },
+          ],
+        }
+      : {};
+
+    const total = await Listing.countDocuments(filter);
+    const listings = await Listing.find(filter)
+      .populate('author', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      listings,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+    });
   } catch (error) {
-    console.error("Fetch Listings Error:", error);
-    res.status(500).json({ message: "Server error fetching listings" });
+    console.error('Fetch Listings Error:', error);
+    res.status(500).json({ message: 'Server error fetching listings' });
   }
 });
 
-// GET current user's listings (Protected)
+// GET current user's listings with server-side pagination + search (Protected)
 router.get("/my", authMiddleware, async (req, res) => {
   try {
-    const listings = await Listing.find({ author: req.user.userId })
-      .populate("author", "firstName lastName")
-      .sort({ createdAt: -1 });
-    res.status(200).json(listings);
+    const page = Math.max(1, parseInt(req.query.page) || 1);
+    const limit = Math.max(1, parseInt(req.query.limit) || 9);
+    const search = req.query.search?.trim() || '';
+
+    const filter = {
+      author: req.user.userId,
+      ...(search
+        ? {
+            $or: [
+              { title: { $regex: search, $options: 'i' } },
+              { location: { $regex: search, $options: 'i' } },
+              { description: { $regex: search, $options: 'i' } },
+            ],
+          }
+        : {}),
+    };
+
+    const total = await Listing.countDocuments(filter);
+    const listings = await Listing.find(filter)
+      .populate('author', 'firstName lastName')
+      .sort({ createdAt: -1 })
+      .skip((page - 1) * limit)
+      .limit(limit);
+
+    res.status(200).json({
+      listings,
+      total,
+      totalPages: Math.ceil(total / limit),
+      currentPage: page,
+    });
   } catch (error) {
-    console.error("Fetch My Listings Error:", error);
-    res.status(500).json({ message: "Server error fetching your listings" });
+    console.error('Fetch My Listings Error:', error);
+    res.status(500).json({ message: 'Server error fetching your listings' });
   }
 });
 
